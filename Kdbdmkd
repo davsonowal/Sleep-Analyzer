@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Night Watch — Sleep Cycle Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #090C1B;
+    --bg-panel: #121933;
+    --bg-panel-2: #1A2242;
+    --line: #2A3560;
+    --line-soft: #202A50;
+    --text: #ECEEF8;
+    --text-muted: #8A93B8;
+    --moon: #F2C879;
+    --moon-soft: #F6D89B;
+    --wake: #F2C879;
+    --rem: #8FA6FF;
+    --n1: #6E7CB0;
+    --n2: #47569A;
+    --n3: #212A56;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1px 1px at 8% 15%, rgba(255,255,255,.55) 50%, transparent 51%),
+      radial-gradient(1px 1px at 82% 8%, rgba(255,255,255,.4) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 62% 28%, rgba(255,255,255,.5) 50%, transparent 51%),
+      radial-gradient(1px 1px at 22% 55%, rgba(255,255,255,.35) 50%, transparent 51%),
+      radial-gradient(1px 1px at 92% 48%, rgba(255,255,255,.4) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 40% 72%, rgba(255,255,255,.3) 50%, transparent 51%),
+      radial-gradient(1px 1px at 70% 88%, rgba(255,255,255,.3) 50%, transparent 51%),
+      linear-gradient(180deg, #05070F 0%, #090C1B 35%, #0C1230 100%);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:36px 18px 56px;}
+
+  header{margin-bottom:26px;animation:riseIn .6s ease-out;}
+  @keyframes riseIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+  .moon-mark{
+    width:38px;height:38px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, var(--moon-soft), var(--moon) 60%, var(--moon-dim) 100%);
+    box-shadow:0 0 22px rgba(242,200,121,.35);
+    margin-bottom:16px;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:clamp(26px,6.4vw,38px);
+    line-height:1.14;
+    margin:0 0 10px;
+    letter-spacing:-0.01em;
+  }
+  h1 .accent{color:var(--moon);font-style:italic;}
+  header p{color:var(--text-muted);font-size:15px;line-height:1.55;max-width:54ch;margin:0;}
+
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-bottom:18px;
+  }
+  .panel h2{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:19px;
+    margin:0 0 16px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .panel h2 .tick{width:5px;height:16px;background:var(--moon);border-radius:3px;display:inline-block;}
+
+  .field-row{display:flex;gap:14px;margin-bottom:14px;}
+  .field{flex:1;min-width:0;}
+  .field label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.01em;}
+  .field input[type=time], .field input[type=number]{
+    width:100%;
+    background:var(--bg-panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:9px;
+    padding:11px 12px;
+    font-family:'Inter',sans-serif;
+    font-size:15px;
+    transition:border-color .15s;
+  }
+  .field input:focus{outline:none;border-color:var(--moon);}
+
+  button.generate{
+    width:100%;
+    background:var(--moon);
+    color:#241a05;
+    border:none;
+    border-radius:9px;
+    padding:14px 16px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+    margin-top:2px;
+    transition:background .15s, transform .1s;
+  }
+  button.generate:hover{background:var(--moon-soft);}
+  button.generate:active{transform:scale(.99);}
+  button.generate:focus-visible{outline:2px solid #fff;outline-offset:2px;}
+
+  .hint{font-size:12.5px;color:var(--text-muted);margin-top:11px;line-height:1.5;}
+
+  .chart-wrap{position:relative;}
+  svg#hypnogram{display:block;width:100%;height:auto;overflow:visible;}
+  .stage-label{font-size:10.5px;fill:var(--text-muted);font-family:'Inter',sans-serif;}
+  .time-label{font-size:10.5px;fill:var(--text-muted);font-family:'Inter',sans-serif;}
+  .grid-line{stroke:var(--line-soft);stroke-width:1;}
+  .seg-rect{stroke:rgba(9,12,27,.5);stroke-width:1;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft);}
+  .legend-item{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-muted);}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+  .stat{
+    background:var(--bg-panel-2);
+    border:1px solid var(--line);
+    border-radius:11px;
+    padding:15px 13px;
+  }
+  .stat .num{font-family:'Fraunces',serif;font-size:25px;color:var(--moon);line-height:1;}
+  .stat .lbl{font-size:11px;color:var(--text-muted);margin-top:7px;letter-spacing:.01em;}
+
+  .bar-row{margin-bottom:13px;}
+  .bar-row:last-child{margin-bottom:0;}
+  .bar-row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;}
+  .bar-row .top .name{color:var(--text);}
+  .bar-row .top .val{color:var(--text-muted);}
+  .bar-track{height:8px;background:var(--bg-panel-2);border-radius:5px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;transition:width .4s ease;}
+
+  .tip{display:flex;gap:13px;padding:14px 0;border-top:1px solid var(--line-soft);}
+  .tip:first-of-type{border-top:none;padding-top:2px;}
+  .tip .mark{font-size:16px;line-height:1.5;width:20px;flex-shrink:0;text-align:center;}
+  .tip .body b{display:block;font-size:14px;margin-bottom:3px;font-weight:600;}
+  .tip .body span{font-size:13.5px;color:var(--text-muted);line-height:1.55;}
+
+  .accordion-item{border-top:1px solid var(--line-soft);}
+  .accordion-item:first-child{border-top:none;}
+  .accordion-item button{
+    width:100%;background:none;border:none;color:var(--text);text-align:left;
+    padding:15px 0;font-family:'Inter',sans-serif;font-size:14.5px;font-weight:600;
+    display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:12px;
+  }
+  .accordion-item .plus{color:var(--moon);font-size:19px;font-weight:400;transition:transform .2s;flex-shrink:0;}
+  .accordion-item.open .plus{transform:rotate(45deg);}
+  .accordion-item .content{max-height:0;overflow:hidden;transition:max-height .3s ease;}
+  .accordion-item .content p{margin:0 0 15px;font-size:13.5px;color:var(--text-muted);line-height:1.6;}
+  .accordion-item.open .content{max-height:300px;}
+
+  .method-grid{display:grid;grid-template-columns:1fr;gap:10px;}
+  .method{background:var(--bg-panel-2);border:1px solid var(--line);border-radius:11px;padding:13px 14px;}
+  .method b{font-size:13.5px;display:block;margin-bottom:4px;}
+  .method span{font-size:12.5px;color:var(--text-muted);line-height:1.55;}
+
+  footer{text-align:center;color:var(--text-muted);font-size:12px;margin-top:22px;line-height:1.6;padding:0 10px;}
+
+  @media (max-width: 420px){
+    .field-row{flex-direction:column;gap:12px;}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .stat-grid .stat:last-child{grid-column:1 / -1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="moon-mark"></div>
+    <h1>Night Watch: <span class="accent">see your sleep, understand your night</span></h1>
+    <p>Enter your bedtime and wake time to generate a modeled hypnogram of your night — REM, light, and deep sleep — with a plain-language read on your sleep health and what to adjust.</p>
+  </header>
+
+  <section class="panel">
+    <h2><span class="tick"></span>Your night</h2>
+    <div class="field-row">
+      <div class="field">
+        <label for="bedtime">Bedtime</label>
+        <input type="time" id="bedtime" value="23:00">
+      </div>
+      <div class="field">
+        <label for="waketime">Wake time</label>
+        <input type="time" id="waketime" value="07:00">
+      </div>
+      <div class="field">
+        <label for="awakenings">Times woken up</label>
+        <input type="number" id="awakenings" min="0" max="10" value="1">
+      </div>
+    </div>
+    <button class="generate" onclick="renderNight()">Generate my sleep cycle</button>
+    <p class="hint">This models a realistic night from your times — it isn't a diagnosis. Real stage data needs direct measurement (see "How sleep is actually measured" below).</p>
+  </section>
+
+  <section class="panel">
+    <h2><span class="tick"></span>Your hypnogram</h2>
+    <div class="chart-wrap">
+      <svg id="hypnogram" viewBox="0 0 640 210" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="dot" style="background:var(--wake)"></span>Wake</div>
+      <div class="legend-item"><span class="dot" style="background:var(--rem)"></span>REM</div>
+      <div class="legend-item"><span class="dot" style="background:var(--n1)"></span>Light (N1)</div>
+      <div class="legend-item"><span class="dot" style="background:var(--n2)"></span>Light (N2)</div>
+      <div class="legend-item"><span class="dot" style="background:var(--n3)"></span>Deep (N3)</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="tick"></span>Sleep stats</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="num" id="statDuration">–</div><div class="lbl">Total sleep</div></div>
+      <div class="stat"><div class="num" id="statEfficiency">–</div><div class="lbl">Sleep efficiency</div></div>
+      <div class="stat"><div class="num" id="statCycles">–</div><div class="lbl">Cycles completed</div></div>
+    </div>
+    <div id="stageBars"></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="tick"></span>What this means & what to do</h2>
+    <div id="tips"></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="tick"></span>Theories of why we sleep</h2>
+    <div id="theoriesAccordion"></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="tick"></span>How sleep is actually measured</h2>
+    <div class="method-grid" id="methods"></div>
+  </section>
+
+  <footer>
+    Built as an educational model of the sleep cycle, following typical 90-minute ultradian patterns from sleep research. It does not read actual brain activity.
+  </footer>
+
+</div>
+
+<script>
+const theories = [
+  { title: "Two-Process Model — Alexander Borbély (1982)",
+    body: "Sleep is controlled by two systems working together: Process S, homeostatic sleep pressure that builds the longer you're awake and dissipates as you sleep, and Process C, your circadian clock, which sets the timing of when you feel sleepy or alert across 24 hours." },
+  { title: "Activation-Synthesis Hypothesis — Hobson & McCarley (1977)",
+    body: "During REM sleep, the brainstem fires largely at random. This theory holds that dreams are the forebrain's attempt to synthesize a coherent story out of that random activation — meaning is constructed after the fact, not encoded in the signal itself." },
+  { title: "Restorative Theory — Ian Oswald",
+    body: "Sleep exists to repair the body and brain: tissue growth and repair are elevated during deep sleep, and the brain consolidates memories and clears metabolic byproducts that accumulate during waking hours." },
+  { title: "Evolutionary / Adaptive Theory — Wilse Webb",
+    body: "Sleep evolved as an energy-conservation and safety strategy — species sleep during the hours they're least equipped to forage or evade predators, keeping them still and quiet when activity would be riskier than rest." },
+  { title: "Discovery of REM sleep — Aserinsky & Kleitman (1953)",
+    body: "The observation of rapid eye movements accompanied by brain activity resembling wakefulness revealed that sleep isn't one uniform state — it launched the modern study of sleep stages and cycles." },
+  { title: "Modern staging system — AASM (2007 update)",
+    body: "The original Stage 1–4 system (Dement & Kleitman, 1957) was revised into today's standard: N1, N2, N3 (combining old stages 3 and 4 into one 'deep sleep' category), and REM — the classification this tool uses." }
+];
+
+const methods = [
+  { title: "Polysomnography (PSG)", body: "The clinical gold standard: EEG (brain waves), EOG (eye movement), EMG (muscle tone), and often ECG, recorded overnight in a lab to score stages directly." },
+  { title: "Actigraphy", body: "A wrist-worn accelerometer infers sleep vs. wake from movement patterns over days or weeks — useful for rhythm and duration, not stage detail." },
+  { title: "Consumer wearables (rings, watches)", body: "Combine a PPG heart-rate sensor with motion (and sometimes blood-oxygen) data, run through machine-learning models trained against PSG recordings to estimate stages." },
+  { title: "Dry-electrode EEG headbands", body: "Consumer devices that record actual brainwave activity at home, giving stage estimates closer to lab-grade accuracy than motion-only wearables." },
+  { title: "Contactless sensors", body: "Under-mattress or bedside radar and sonar track breathing and heart rate without touching the body, using ballistocardiography or Wi-Fi sensing." },
+  { title: "AI sleep-staging models", body: "Deep learning models trained on large PSG datasets increasingly automate the scoring that sleep technicians used to do stage-by-stage by hand." }
+];
+
+const stageColor = { Wake: 'var(--wake)', REM: 'var(--rem)', N1: 'var(--n1)', N2: 'var(--n2)', N3: 'var(--n3)' };
+const stageDepth = { Wake: 0, REM: 1, N1: 2, N2: 3, N3: 4 };
+
+function timeToMinutes(t){ const [h,m] = t.split(':').map(Number); return h*60+m; }
+function fmtHM(mins){ const h = Math.floor(mins/60), m = Math.round(mins%60); return h + "h " + m + "m"; }
+
+function buildNight(totalSleepMin, awakenings){
+  const segments = [];
+  let remaining = totalSleepMin;
+  let cycle = 0;
+  const cycleLen = 90;
+
+  while(remaining > 0){
+    const len = Math.min(cycleLen, remaining);
+    const n3Frac = Math.max(0.04, 0.32 - cycle*0.07);
+    const remFrac = Math.min(0.32, 0.10 + cycle*0.055);
+    const n1Frac = 0.06;
+    const n2Frac = Math.max(0.15, 1 - n3Frac - remFrac - n1Frac);
+
+    segments.push({stage:'N1', dur: len*n1Frac});
+    segments.push({stage:'N2', dur: len*n2Frac*0.5});
+    segments.push({stage:'N3', dur: len*n3Frac});
+    segments.push({stage:'N2', dur: len*n2Frac*0.5});
+    segments.push({stage:'REM', dur: len*remFrac});
+
+    remaining -= len;
+    cycle++;
+  }
+
+  if(awakenings > 0){
+    const totalDur = segments.reduce((a,s)=>a+s.dur,0);
+    const gap = totalDur/(awakenings+1);
+    let cursor = 0, target = gap;
+    const out = [];
+    for(const seg of segments){
+      const segStart = cursor, segEnd = cursor + seg.dur;
+      if(target > segStart && target < segEnd && awakenings > 0){
+        const before = target - segStart, wakeDur = 4, after = seg.dur - before - wakeDur;
+        if(before > 1) out.push({stage:seg.stage, dur:before});
+        out.push({stage:'Wake', dur:wakeDur});
+        if(after > 1) out.push({stage:seg.stage, dur:after});
+        target += gap;
+      } else { out.push(seg); }
+      cursor = segEnd;
+    }
+    return out;
+  }
+  return segments;
+}
+
+function renderHypnogram(segments, totalMin){
+  const svg = document.getElementById('hypnogram');
+  const W = 640, H = 210;
+  const padL = 46, padR = 10, padT = 8, padB = 24;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const rowH = chartH / 5;
+
+  let parts = [];
+  const labels = ['Wake','REM','N1','N2','N3'];
+  labels.forEach((lab,i)=>{
+    const y = padT + i*rowH;
+    parts.push(`<line class="grid-line" x1="${padL}" y1="${y+rowH}" x2="${W-padR}" y2="${y+rowH}"></line>`);
+    parts.push(`<text class="stage-label" x="${padL-8}" y="${y+rowH/2+4}" text-anchor="end">${lab}</text>`);
+  });
+
+  let cursor = 0;
+  segments.forEach(seg=>{
+    const x = padL + (cursor/totalMin)*chartW;
+    const w = Math.max(0, (seg.dur/totalMin)*chartW - 0.6);
+    const depth = stageDepth[seg.stage];
+    const barH = rowH*0.62;
+    const y = padT + depth*rowH + (rowH-barH)/2;
+    parts.push(`<rect class="seg-rect" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${barH.toFixed(2)}" rx="2.5" fill="${stageColor[seg.stage]}"></rect>`);
+    cursor += seg.dur;
+  });
+
+  parts.push(`<text class="time-label" x="${padL}" y="${H-4}" text-anchor="start">0h</text>`);
+  parts.push(`<text class="time-label" x="${padL+chartW/2}" y="${H-4}" text-anchor="middle">${fmtHM(totalMin/2)}</text>`);
+  parts.push(`<text class="time-label" x="${W-padR}" y="${H-4}" text-anchor="end">${fmtHM(totalMin)}</text>`);
+
+  svg.innerHTML = parts.join('');
+}
+
+function renderStageBars(stageTotals, totalMin){
+  const order = ['REM','N1','N2','N3','Wake'];
+  const names = {REM:'REM sleep', N1:'Light sleep (N1)', N2:'Light sleep (N2)', N3:'Deep sleep (N3)', Wake:'Awake'};
+  document.getElementById('stageBars').innerHTML = order.map(st=>{
+    const val = stageTotals[st] || 0;
+    const pct = Math.round((val/totalMin)*100);
+    return `<div class="bar-row">
+      <div class="top"><span class="name">${names[st]}</span><span class="val">${pct}% · ${fmtHM(val)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${stageColor[st]}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderTips(totalSleepMin, efficiency, stagePct){
+  const tips = [];
+  if(totalSleepMin < 7*60){
+    tips.push({mark:'⏱', title:'Duration is on the short side', body:`You're getting ${fmtHM(totalSleepMin)}, below the 7–9 hour range most adults need. Try shifting your bedtime 20–30 minutes earlier for a few nights rather than changing it all at once.`});
+  } else if(totalSleepMin > 9.5*60){
+    tips.push({mark:'⏱', title:'Longer than typical', body:`${fmtHM(totalSleepMin)} is above the usual adult range. That's not automatically a problem, but consistently needing this much can be worth mentioning to a doctor if it's new for you.`});
+  } else {
+    tips.push({mark:'✓', title:'Duration looks solid', body:`${fmtHM(totalSleepMin)} falls in the 7–9 hour range recommended for most adults.`});
+  }
+  if(efficiency < 85){
+    tips.push({mark:'⚠', title:'Efficiency is lower than ideal', body:`Only ${Math.round(efficiency)}% of your time in bed is spent asleep. If you're lying awake a lot, try getting up if you're not asleep within ~20 minutes, and reserve the bed for sleep only.`});
+  } else {
+    tips.push({mark:'✓', title:'Good sleep efficiency', body:`${Math.round(efficiency)}% of your time in bed is spent asleep — that's a healthy ratio.`});
+  }
+  if(stagePct.N3 < 13){
+    tips.push({mark:'⚠', title:'Deep sleep looks low', body:'Deep sleep typically makes up 13–23% of a night. Alcohol, late caffeine, and a warm bedroom all suppress it — try cooling the room and finishing exercise a few hours before bed.'});
+  }
+  if(stagePct.REM < 18){
+    tips.push({mark:'⚠', title:'REM sleep looks low', body:'REM usually runs 20–25% of total sleep and rises later in the night, so cutting a night short disproportionately cuts REM. A consistent wake time helps protect it.'});
+  }
+  tips.push({mark:'☾', title:'General sleep hygiene', body:'Keep a consistent wake time (even on weekends), get daylight soon after waking, and dim lights and screens in the hour before bed to support your circadian rhythm.'});
+
+  document.getElementById('tips').innerHTML = tips.map(t=>
+    `<div class="tip"><div class="mark">${t.mark}</div><div class="body"><b>${t.title}</b><span>${t.body}</span></div></div>`
+  ).join('');
+}
+
+function renderNight(){
+  const bedtime = document.getElementById('bedtime').value || "23:00";
+  const waketime = document.getElementById('waketime').value || "07:00";
+  const awakenings = Math.max(0, parseInt(document.getElementById('awakenings').value) || 0);
+
+  let bed = timeToMinutes(bedtime);
+  let wake = timeToMinutes(waketime);
+  let timeInBed = wake - bed;
+  if(timeInBed <= 0) timeInBed += 24*60;
+
+  const latency = 12;
+  const wakeOverhead = awakenings * 6;
+  let totalSleep = timeInBed - latency - wakeOverhead;
+  if(totalSleep < 60) totalSleep = 60;
+
+  const efficiency = Math.min(99, (totalSleep/timeInBed)*100);
+  const cycles = Math.round((totalSleep/90)*10)/10;
+
+  const segments = buildNight(totalSleep, awakenings);
+  const stageTotals = {};
+  segments.forEach(s=> stageTotals[s.stage] = (stageTotals[s.stage]||0) + s.dur);
+
+  renderHypnogram(segments, totalSleep);
+  renderStageBars(stageTotals, totalSleep);
+
+  document.getElementById('statDuration').textContent = fmtHM(totalSleep);
+  document.getElementById('statEfficiency').textContent = Math.round(efficiency) + '%';
+  document.getElementById('statCycles').textContent = cycles;
+
+  const stagePct = {};
+  Object.keys(stageTotals).forEach(k=> stagePct[k] = (stageTotals[k]/totalSleep)*100);
+  renderTips(totalSleep, efficiency, {N3: stagePct.N3||0, REM: stagePct.REM||0});
+}
+
+function buildAccordion(id, items){
+  const el = document.getElementById(id);
+  el.innerHTML = items.map((it,i)=>`
+    <div class="accordion-item" id="${id}-item-${i}">
+      <button onclick="toggleAccordion('${id}-item-${i}')">
+        <span>${it.title}</span><span class="plus">+</span>
+      </button>
+      <div class="content"><p>${it.body}</p></div>
+    </div>
+  `).join('');
+}
+function toggleAccordion(itemId){ document.getElementById(itemId).classList.toggle('open'); }
+
+function renderMethods(){
+  document.getElementById('methods').innerHTML = methods.map(m=>
+    `<div class="method"><b>${m.title}</b><span>${m.body}</span></div>`
+  ).join('');
+}
+
+buildAccordion('theoriesAccordion', theories);
+renderMethods();
+renderNight();
+</script>
+</body>
+</html>
